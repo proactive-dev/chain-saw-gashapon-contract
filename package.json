@@ -1,0 +1,21 @@
+{
+  "name": "gashapon-contract",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.4.2"
+  },
+  "scripts": {
+    "build": "npx hardhat build",
+    "test": "npx hardhat test"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.4",
+    "@nomiclabs/hardhat-waffle": "^2.0.2",
+    "chai": "^4.3.4",
+    "dotenv": "^15.0.0",
+    "ethereum-waffle": "^3.4.0",
+    "ethers": "^5.5.3",
+    "hardhat": "^2.8.3"
+  }
+}

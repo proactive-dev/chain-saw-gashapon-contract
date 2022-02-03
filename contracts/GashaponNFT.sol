@@ -2,10 +2,11 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-contract GashaponNFT is ERC721, Ownable {
+contract GashaponNFT is ERC721, ERC721Holder, Ownable {
   event Paused(uint _drop);
   event Unpaused(uint _drop);
 
@@ -20,22 +21,22 @@ contract GashaponNFT is ERC721, Ownable {
   uint public maxAmountPerTrx = 5;
 
   constructor() ERC721("GashaponNFT","GSP") {
-    _baseTokenURI = "https://ipfs.io/ipfs/";
+    _baseTokenURI = "https://ipfs.io/ipfs/"; // TODO: Replace
 
     uint _totalSupply = AMOUNT_PER_DROP * DROP_COUNT;
     for (uint256 i; i < _totalSupply; i++) {
       _mint(address(this), i + 1);
     }
 
-    pauseAll();
+    _pauseAll();
   }
 
-  function tokenURI(uint256 _tokenId) public view virtual override returns (string memory) {
+  function tokenURI(uint256 _tokenId) public view override returns (string memory) {
     require(_exists(_tokenId), "ERC721Metadata: URI query for nonexistent token");
     return string(abi.encodePacked(_baseTokenURI, _tokenId));
   }
 
-  function sale(uint _drop) external payable {
+  function sale(uint _drop) external payable isHuman {
     require(!paused(_drop), "Drop paused");
 
     // verify that the user sent enough eth to pay for the sale
@@ -55,12 +56,15 @@ contract GashaponNFT is ERC721, Ownable {
     _dropsSale[_drop] = _estimatedDropSale;
   }
 
-  // TODO: implement sale
   function _sale(uint _drop, uint _amount, address _to) internal {
     for (uint i = 0; i < _amount; i++) {
-      // get random values from chainlink VRF
-      // Check already sold
+      // get random token id and check already sold
+      uint _tokenId;
+      do {
+        _tokenId = (_drop - 1) * AMOUNT_PER_DROP + rnd();
+      } while (isSold(_tokenId));
       // transfer
+      _transfer(address(this), _to, _tokenId);
     }
   }
 
@@ -74,6 +78,22 @@ contract GashaponNFT is ERC721, Ownable {
 
   function soldOut(uint _drop) public view returns (bool) {
     return _dropsSale[_drop] >= AMOUNT_PER_DROP;
+  }
+
+  function isSold(uint256 _tokenId) internal view returns (bool) {
+    return ownerOf(_tokenId) != address(this);
+  }
+
+  function rnd() internal view returns(uint256) {
+    uint256 seed = uint256(keccak256(abi.encodePacked(
+        block.timestamp + block.difficulty +
+        ((uint256(keccak256(abi.encodePacked(block.coinbase)))) / (block.timestamp)) +
+        block.gaslimit +
+        ((uint256(keccak256(abi.encodePacked(msg.sender)))) / (block.timestamp)) +
+        block.number
+      )));
+
+    return (seed - ((seed / AMOUNT_PER_DROP) * AMOUNT_PER_DROP));
   }
 
   // Pausable for drops
@@ -94,12 +114,20 @@ contract GashaponNFT is ERC721, Ownable {
   }
 
   function pauseAll() public onlyOwner {
+    _pauseAll();
+  }
+
+  function unpauseAll() public onlyOwner {
+    _unpauseAll();
+  }
+
+  function _pauseAll() internal {
     for (uint256 i = 1; i <= DROP_COUNT; i++) {
       _pause(i);
     }
   }
 
-  function unpauseAll() public onlyOwner {
+  function _unpauseAll() internal {
     for (uint256 i = 1; i <= DROP_COUNT; i++) {
       _unpause(i);
     }
@@ -133,4 +161,9 @@ contract GashaponNFT is ERC721, Ownable {
     _;
   }
 
+  // This modifier is used to prevent contract to interact with this.
+  modifier isHuman() {
+    require(tx.origin == msg.sender, "EOA only");
+    _;
+  }
 }

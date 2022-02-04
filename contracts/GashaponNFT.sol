@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
 contract GashaponNFT is ERC721, ERC721Holder, Ownable {
+  event Activated(uint _drop);
   event Paused(uint _drop);
   event Unpaused(uint _drop);
 
@@ -14,6 +15,7 @@ contract GashaponNFT is ERC721, ERC721Holder, Ownable {
   uint constant AMOUNT_PER_DROP = 600;
 
   string private _baseTokenURI;
+  mapping (uint => bool) private _activated;
   mapping (uint => bool) private _paused;
   mapping (uint => uint) private _dropsSale;
 
@@ -22,13 +24,6 @@ contract GashaponNFT is ERC721, ERC721Holder, Ownable {
 
   constructor() ERC721("Cool3dToys","C3DT") {
     _baseTokenURI = "https://ipfs.io/ipfs/"; // TODO: Replace
-
-    uint _totalSupply = AMOUNT_PER_DROP * DROP_COUNT;
-    for (uint256 i; i < _totalSupply; i++) {
-      _mint(address(this), i + 1);
-    }
-
-    _pauseAll();
   }
 
   function tokenURI(uint256 _tokenId) public view override returns (string memory) {
@@ -36,9 +31,7 @@ contract GashaponNFT is ERC721, ERC721Holder, Ownable {
     return string(abi.encodePacked(_baseTokenURI, _tokenId));
   }
 
-  function sale(uint _drop) external payable isHuman {
-    require(!paused(_drop), "Drop paused");
-
+  function sale(uint _drop) external payable isHuman whenActivated(_drop) whenNotPaused(_drop) {
     // verify that the user sent enough eth to pay for the sale
     uint remainder = msg.value % salePrice;
     require(remainder == 0, "Send a divisible amount of ether");
@@ -96,6 +89,21 @@ contract GashaponNFT is ERC721, ERC721Holder, Ownable {
     return (seed - ((seed / AMOUNT_PER_DROP) * AMOUNT_PER_DROP));
   }
 
+  // activation
+  function activate(uint _drop) public onlyOwner whenNotActivated(_drop) {
+    uint startId = AMOUNT_PER_DROP * (_drop - 1) + 1;
+    for (uint256 i = startId; i < AMOUNT_PER_DROP + startId; i++) {
+      _mint(address(this), i);
+    }
+
+    _activated[_drop] = true;
+    emit Activated(_drop);
+  }
+
+  function activated(uint _drop) public view returns (bool) {
+    return _activated[_drop];
+  }
+
   // Pausable for drops
   function pause(uint[] calldata _drops) public onlyOwner {
     for (uint256 i; i < _drops.length; i++) {
@@ -151,6 +159,8 @@ contract GashaponNFT is ERC721, ERC721Holder, Ownable {
     return _paused[_drop];
   }
 
+  // modifiers
+
   modifier whenNotPaused(uint _drop) {
     require(!paused(_drop), "Drop paused");
     _;
@@ -158,6 +168,16 @@ contract GashaponNFT is ERC721, ERC721Holder, Ownable {
 
   modifier whenPaused(uint _drop) {
     require(paused(_drop), "Drop not paused");
+    _;
+  }
+
+  modifier whenNotActivated(uint _drop) {
+    require(!activated(_drop), "Drop already activated");
+    _;
+  }
+
+  modifier whenActivated(uint _drop) {
+    require(activated(_drop), "Drop not activated");
     _;
   }
 

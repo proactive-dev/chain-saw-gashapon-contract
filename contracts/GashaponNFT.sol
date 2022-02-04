@@ -20,7 +20,7 @@ contract GashaponNFT is ERC721, ERC721Holder, Ownable {
   uint public salePrice = 0.1 ether;
   uint public maxAmountPerTrx = 5;
 
-  constructor() ERC721("GashaponNFT","GSP") {
+  constructor() ERC721("Cool3dToys","C3DT") {
     _baseTokenURI = "https://ipfs.io/ipfs/"; // TODO: Replace
 
     uint _totalSupply = AMOUNT_PER_DROP * DROP_COUNT;
